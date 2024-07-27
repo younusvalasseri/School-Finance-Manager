@@ -1,0 +1,83 @@
+{
+    "@@locale": "en",
+    "appTitle": "Institute Management App",
+    "@appTitle": {
+        "description": "Institute Management App"
+    },
+    "home": "Home",
+    "@home": {
+        "description": "Home"
+    },
+    "reports": "Reports",
+    "@reports": {
+        "description": "Reports"
+    },
+    "settings": "Settings",
+    "@settings": {
+        "description": "Settings"
+    },
+    "add": "Add",
+    "@add": {
+        "description": "Add"
+    },
+    "language": "Language",
+    "@language": {
+        "description": "Language"
+    },
+    "darkTheme": "Dark Theme",
+    "@darkTheme": {
+        "description": "Dark Theme"
+    },
+    "privacyPolicy": "Privacy Policy",
+    "@privacyPolicy": {
+        "description": "Privacy Policy"
+    },
+    "adminPanel": "Admin Panel",
+    "@adminPanel": {
+        "description": "Admin Panel"
+    },
+    "passwordReset": "Password Reset",
+    "@passwordReset": {
+        "description": "Password Reset"
+    },
+    "categories": "Categories",
+    "@categories": {
+        "description": "Categories"
+    },
+    "courses": "Courses",
+    "@courses": {
+        "description": "Courses"
+    },
+    "Income": "Income",
+    "@Income": {
+        "description": "Income"
+    },
+    "Expenses": "Expenses",
+    "@Expenses": {
+        "description": "Expenses"
+    },
+    "Employees": "Employees",
+    "@Employees": {
+        "description": "Employees"
+    },
+    "Students": "Students",
+    "@Students": {
+        "description": "Students"
+    },
+    "Transaction": "Transaction",
+    "@Transaction": {
+        "description": "Transaction"
+    },
+    "Categories": "Categories",
+    "@Categories": {
+        "description": "Categories"
+    },
+    "AddEmployee": "Add Employee",
+    "@AddEmployee": {
+        "description": "Add Employee"
+    },
+    "EditEmployee": "Edit Employee",
+    "@EditEmployee": {
+        "description": "Edit Employee"
+    }
+}

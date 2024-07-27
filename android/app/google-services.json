@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "607784019051",
+    "project_id": "institute-money-management-2",
+    "storage_bucket": "institute-money-management-2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:607784019051:android:24ee42cad67a8bfc9cfd2e",
+        "android_client_info": {
+          "package_name": "com.example.week7InstituteProject2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnn5FqV26eF12TkioGN2n00Zsogt9dZG0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

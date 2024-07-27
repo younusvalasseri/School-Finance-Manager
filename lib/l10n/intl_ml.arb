@@ -1,0 +1,83 @@
+{
+    "@@locale": "ml",
+    "appTitle": "ഇൻസ്റ്റിറ്റ്യൂട്ട് മാനേജ്മെന്റ് ആപ്പ്",
+    "@appTitle": {
+        "description": "Institute Management App"
+    },
+    "home": "ഹോം",
+    "@home": {
+        "description": "Home"
+    },
+    "reports": "റിപ്പോർട്ടുകൾ",
+    "@reports": {
+        "description": "Reports"
+    },
+    "settings": "ക്രമീകരണങ്ങൾ",
+    "@settings": {
+        "description": "Settings"
+    },
+    "add": "ചേർക്കുക",
+    "@add": {
+        "description": "Add"
+    },
+    "language": "ഭാഷ",
+    "@language": {
+        "description": "Language"
+    },
+    "darkTheme": "ഡാർക്ക് തീം",
+    "@darkTheme": {
+        "description": "Dark Theme"
+    },
+    "privacyPolicy": "സ്വകാര്യതാനയം",
+    "@privacyPolicy": {
+        "description": "Privacy Policy"
+    },
+    "adminPanel": "അഡ്മിൻ പാനൽ",
+    "@adminPanel": {
+        "description": "Admin Panel"
+    },
+    "passwordReset": "പാസ്വേഡ് റിസെറ്റ്",
+    "@passwordReset": {
+        "description": "Password Reset"
+    },
+    "categories": "വിഭാഗങ്ങൾ",
+    "@categories": {
+        "description": "Categories"
+    },
+    "courses": "കോഴ്‌സുകൾ",
+    "@courses": {
+        "description": "Courses"
+    },
+    "Income": "വരുമാനം",
+    "@Income": {
+        "description": "Income"
+    },
+    "Expenses": "ചെലവുകൾ",
+    "@Expenses": {
+        "description": "Expenses"
+    },
+    "Employees": "ജീവനക്കാർ",
+    "@Employees": {
+        "description": "Employees"
+    },
+    "Students": "വിദ്യാർത്ഥികൾ",
+    "@Students": {
+        "description": "Students"
+    },
+    "Transaction": "ഇടപാടുകൾ",
+    "@Transaction": {
+        "description": "Transaction"
+    },
+    "Categories": "വിഭാഗങ്ങൾ",
+    "@Categories": {
+        "description": "Categories"
+    },
+    "AddEmployee": "ജീവനക്കാരനെ ചേർക്കുക",
+    "@AddEmployee": {
+        "description": "Add Employee"
+    },
+    "EditEmployee": "ജീവനക്കാരനെ എഡിറ്റ് ചെയ്യുക",
+    "@EditEmployee": {
+        "description": "Edit Employee"
+    }
+}
