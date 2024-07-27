@@ -33,7 +33,7 @@ dependencies:
   external_path: ^1.0.3
 
   url_launcher: ^6.0.15
-  flutter_email_sender: ^5.0.2
+  flutter_email_sender: ^6.0.3
   image_picker: ^1.1.2
   pdf: ^3.3.0
   printing: ^5.6.0
@@ -41,10 +41,10 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.6
-  syncfusion_flutter_charts: ^20.2.44
-  excel: ^2.0.5
+  syncfusion_flutter_charts: ^26.2.5+1
+  excel: ^4.0.3
   path_provider: ^2.0.11
-  file_picker: ^5.0.1
+  file_picker: ^8.0.6
   firebase_core: ^3.2.0
   cloud_firestore: ^5.1.0
   firebase_auth: ^5.1.2
@@ -65,7 +65,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

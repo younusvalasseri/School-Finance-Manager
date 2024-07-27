@@ -71,7 +71,7 @@ class _StudentsCollectionVsPendingReportState
                       dateFormat: DateFormat.yMMMM(),
                       intervalType: DateTimeIntervalType.months,
                     ),
-                    series: <ChartSeries>[
+                    series: <CartesianSeries>[
                       LineSeries<ChartData, DateTime>(
                         name: 'Student Fee Collection',
                         dataSource: snapshot.data!,
