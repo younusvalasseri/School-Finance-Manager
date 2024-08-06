@@ -18,7 +18,7 @@ class AddExpensesScreen extends StatefulWidget {
       required this.currentUser});
 
   @override
-  _AddExpensesScreenState createState() => _AddExpensesScreenState();
+  State<AddExpensesScreen> createState() => _AddExpensesScreenState();
 }
 
 class _AddExpensesScreenState extends State<AddExpensesScreen> {
@@ -312,7 +312,7 @@ class _AddExpensesScreenState extends State<AddExpensesScreen> {
         CRUDOperations().createTransaction(newTransaction);
       } else {
         CRUDOperations()
-            .updateTransaction(widget.transactionId!, newTransaction);
+            .updateTransaction(newTransaction.compositeKey, newTransaction);
       }
 
       Navigator.of(context).pop();

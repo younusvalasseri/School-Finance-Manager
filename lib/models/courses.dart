@@ -1,7 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
+part 'courses.g.dart';
+
+@HiveType(typeId: 5)
 class Courses {
+  @HiveField(0)
   String? courseName;
+
+  @HiveField(1)
   String? courseDescription;
 
   Courses({

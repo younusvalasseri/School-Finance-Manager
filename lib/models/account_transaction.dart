@@ -1,15 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
+part 'account_transaction.g.dart';
+
+@HiveType(typeId: 3)
 class AccountTransaction {
-  String journalNumber;
-  String entryNumber;
-  DateTime entryDate;
-  String category;
-  String mainCategory;
-  String subCategory;
-  double amount;
+  @HiveField(0)
+  late String journalNumber;
+
+  @HiveField(1)
+  late String entryNumber;
+
+  @HiveField(2)
+  late DateTime entryDate;
+
+  @HiveField(3)
+  late String category;
+
+  @HiveField(4)
+  late String mainCategory;
+
+  @HiveField(5)
+  late String subCategory;
+
+  @HiveField(6)
+  late double amount;
+
+  @HiveField(7)
   String? note;
+
+  @HiveField(8)
   String? studentId;
+
+  @HiveField(9)
   String? employeeId;
 
   AccountTransaction({
@@ -24,6 +47,8 @@ class AccountTransaction {
     this.studentId,
     this.employeeId,
   });
+// Generate composite key
+  String get compositeKey => '$journalNumber-$entryNumber';
 
   // Convert a Firestore DocumentSnapshot into an AccountTransaction object
   factory AccountTransaction.fromFirestore(DocumentSnapshot doc) {

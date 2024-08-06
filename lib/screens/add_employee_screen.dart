@@ -1,4 +1,8 @@
+// ignore_for_file: unrelated_type_equality_checks
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:week7_institute_project_2/generated/l10n.dart';
 import 'package:week7_institute_project_2/models/employee.dart';
@@ -10,7 +14,7 @@ class AddEmployeeScreen extends StatefulWidget {
   const AddEmployeeScreen({super.key, this.employee, this.employeeId});
 
   @override
-  _AddEmployeeScreenState createState() => _AddEmployeeScreenState();
+  State<AddEmployeeScreen> createState() => _AddEmployeeScreenState();
 }
 
 class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
@@ -102,12 +106,22 @@ class _AddEmployeeScreenState extends State<AddEmployeeScreen> {
         isActive: isActive,
       );
 
-      final navigator = Navigator.of(context); // Store the navigator context
+      final navigator = Navigator.of(context);
 
-      if (widget.employee == null) {
-        await CRUDOperations().createEmployee(newEmployee);
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult != ConnectivityResult.none) {
+        // Save to Firestore if internet connection is available
+        if (widget.employee == null) {
+          await CRUDOperations().createEmployee(newEmployee);
+        } else {
+          await CRUDOperations().updateEmployee(empNumber, newEmployee);
+        }
       } else {
-        await CRUDOperations().updateEmployee(widget.employeeId!, newEmployee);
+        // Save to Hive if no internet connection
+        await Future(() async {
+          var employeesBox = Hive.box<Employee>('employees');
+          await employeesBox.add(newEmployee);
+        });
       }
 
       if (mounted) {

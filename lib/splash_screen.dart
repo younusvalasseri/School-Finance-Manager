@@ -1,66 +1,45 @@
 import 'package:flutter/material.dart';
-// import 'package:week7_institute_project_2/home_screen.dart';
+import 'dart:async';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  // ignore: library_private_types_in_public_api
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _startDelay();
+  }
+
+  _startDelay() async {
+    var duration = const Duration(seconds: 3);
+    return Timer(duration, _navigateToHome);
+  }
+
+  _navigateToHome() {
+    Navigator.pushReplacementNamed(context, '/home');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                color: Colors.amber,
-                height: 100,
-              ),
-              Positioned(child: _buildHeader())
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: SizedBox(
-        height: 200,
-        child: Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          color: const Color.fromARGB(255, 214, 188, 111),
-          child: const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'User Name',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundImage: AssetImage('assets/Younus_1.jpg'),
-                    ),
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundImage: AssetImage('assets/iat_logo.jpg'),
-                    ),
-                  ],
-                ),
-                Text('Total Balance: \$${1000}'),
-              ],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset('assets/iat_logo.jpg', width: 100, height: 100),
+            const SizedBox(height: 20),
+            const Text(
+              'Welcome to IAT Students Fee Management Program',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-          ),
+          ],
         ),
       ),
     );

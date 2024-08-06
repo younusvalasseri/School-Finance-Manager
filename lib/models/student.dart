@@ -1,18 +1,45 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
+part 'student.g.dart';
+
+@HiveType(typeId: 1)
 class Student {
-  String admNumber;
-  String name;
-  String fatherPhone;
-  String motherPhone;
-  String studentPhone;
-  String course;
-  String batch;
-  String address;
+  @HiveField(0)
+  late String admNumber;
+
+  @HiveField(1)
+  late String name;
+
+  @HiveField(2)
+  late String fatherPhone;
+
+  @HiveField(3)
+  late String motherPhone;
+
+  @HiveField(4)
+  late String studentPhone;
+
+  @HiveField(5)
+  late String course;
+
+  @HiveField(6)
+  late String batch;
+
+  @HiveField(7)
+  late String address;
+
+  @HiveField(8)
   String? profilePicture;
+
+  @HiveField(9)
   double? courseFee = 0;
-  bool isDeleted = false;
-  String? classTeacher;
+
+  @HiveField(10)
+  bool isDeleted = false; // Added field
+
+  @HiveField(11)
+  String? classTeacher; // Added field
 
   Student({
     required this.admNumber,

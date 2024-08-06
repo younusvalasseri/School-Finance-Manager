@@ -1,20 +1,87 @@
+// ignore_for_file: unrelated_type_equality_checks
+
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:week7_institute_project_2/login_page.dart';
-import 'package:week7_institute_project_2/password_reset_page.dart';
-import 'package:week7_institute_project_2/registration_page.dart';
-import 'package:week7_institute_project_2/reports/reports_screen.dart';
-import 'package:week7_institute_project_2/settings_screen.dart';
-import 'package:week7_institute_project_2/splash_screen.dart';
-import 'package:week7_institute_project_2/generated/l10n.dart';
-import 'package:week7_institute_project_2/home_screen.dart';
-import 'package:week7_institute_project_2/models/employee.dart';
+import 'package:hive_flutter/adapters.dart';
+import 'crud_operations.dart';
+import 'login_page.dart';
+import 'password_reset_page.dart';
+import 'registration_page.dart';
+import 'reports/reports_screen.dart';
+import 'settings_screen.dart';
+import 'splash_screen.dart';
+import 'generated/l10n.dart';
+import 'home_screen.dart';
+import 'models/employee.dart';
+import 'models/account_transaction.dart';
+import 'models/category.dart';
+import 'models/courses.dart';
+import 'models/student.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await Hive.initFlutter();
+
+  // Register all adapters
+  Hive.registerAdapter(CategoryAdapter());
+  Hive.registerAdapter(AccountTransactionAdapter());
+  Hive.registerAdapter(CoursesAdapter());
+  Hive.registerAdapter(EmployeeAdapter());
+  Hive.registerAdapter(StudentAdapter());
+
+  // Open the boxes
+  await Hive.openBox<Category>('categories');
+  await Hive.openBox<AccountTransaction>('transactions');
+  await Hive.openBox<Courses>('courses');
+  await Hive.openBox<Employee>('employees');
+  await Hive.openBox<Student>('students');
+
+  // Ensure the admin user exists
+  var employeesBox = Hive.box<Employee>('employees');
+  if (employeesBox.values
+      .where((e) => e.username == 'admin' && e.password == 'admin')
+      .isEmpty) {
+    employeesBox.add(Employee(
+      empNumber: '1',
+      name: 'Administrator',
+      position: 'Admin',
+      phone: '1234567890',
+      address: 'Admin Address',
+      password: 'admin',
+      role: 'Admin',
+      isActive: true,
+      username: 'admin',
+      profilePicture: 'assets/iat_logo.jpg',
+    ));
+  }
+
+  // Update existing users with default username
+  await updateExistingUsersWithDefaultUsername();
+
   runApp(const MyApp());
+// Start syncing transactions
+  CRUDOperations().startSyncingTransactions();
+}
+
+Future<void> updateExistingUsersWithDefaultUsername() async {
+  final employeesBox = Hive.box<Employee>('employees');
+
+  for (var employee in employeesBox.values) {
+    if (employee.username == null || employee.username!.isEmpty) {
+      employee.username =
+          'default_${employee.empNumber}'; // Example: default_001
+      await employee.save();
+    }
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -27,6 +94,48 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.light;
   Locale _locale = const Locale('en');
+  late Box<Employee> employeesBox;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeHive();
+  }
+
+  void _initializeHive() async {
+    employeesBox = await Hive.openBox<Employee>('employees');
+    _syncWithFirebase();
+  }
+
+  void _syncWithFirebase() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      var employeesCollection =
+          FirebaseFirestore.instance.collection('employees');
+      var querySnapshot = await employeesCollection.get();
+
+      // Merge Firebase data into Hive
+      for (var doc in querySnapshot.docs) {
+        var employee = Employee.fromFirestore(doc);
+        if (employeesBox.values
+            .where((e) => e.empNumber == employee.empNumber)
+            .isEmpty) {
+          await employeesBox.add(employee);
+        }
+      }
+
+      // Push local changes to Firebase if not already existing
+      for (var employee in employeesBox.values) {
+        var docSnapshot =
+            await employeesCollection.doc(employee.empNumber).get();
+        if (!docSnapshot.exists) {
+          await employeesCollection
+              .doc(employee.empNumber)
+              .set(employee.toFirestore());
+        }
+      }
+    }
+  }
 
   void _toggleTheme(bool isDark) {
     setState(() {
@@ -100,8 +209,7 @@ class MainScreen extends StatefulWidget {
   });
 
   @override
-  // ignore: library_private_types_in_public_api
-  _MainScreenState createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
@@ -163,22 +271,6 @@ class _MainScreenState extends State<MainScreen> {
         ],
         currentIndex: _selectedIndex,
         onTap: onItemTapped,
-      ),
-    );
-  }
-}
-
-class StudentCollectionPendingReportScreen extends StatelessWidget {
-  const StudentCollectionPendingReportScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(S.of(context).reports),
-      ),
-      body: Center(
-        child: Text(S.of(context).reports),
       ),
     );
   }

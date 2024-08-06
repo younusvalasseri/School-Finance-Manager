@@ -9,11 +9,14 @@ import '../crud_operations.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final AccountTransaction? transaction;
-  final int? index;
+  final String? transactionId;
   final Employee currentUser;
 
   const AddTransactionScreen(
-      {super.key, this.transaction, this.index, required this.currentUser});
+      {super.key,
+      this.transaction,
+      this.transactionId,
+      required this.currentUser});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -304,8 +307,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (widget.transaction == null) {
         crudOperations.createTransaction(newTransaction);
       } else {
-        crudOperations.updateTransaction(
-            widget.transaction!.journalNumber, newTransaction);
+        CRUDOperations()
+            .updateTransaction(newTransaction.compositeKey, newTransaction);
       }
 
       Navigator.of(context).pop();

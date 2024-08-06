@@ -9,7 +9,6 @@ import 'package:week7_institute_project_2/screens/add_income_screen.dart';
 
 class IncomeScreen extends StatefulWidget {
   final Employee currentUser;
-
   const IncomeScreen({super.key, required this.currentUser});
 
   @override
@@ -57,8 +56,9 @@ class _IncomeScreenState extends State<IncomeScreen> {
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                AddIncomeScreen(currentUser: widget.currentUser),
+            builder: (context) => AddIncomeScreen(
+              currentUser: widget.currentUser,
+            ),
           ),
         ),
         tooltip: 'Add Income',
@@ -82,7 +82,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  '${DateFormat('dd-MM-yyyy').format(_selectedDateRange!.start)} - ${DateFormat('dd-MM-yyyy').format(_selectedDateRange!.end)}',
+                  '${DateFormat('dd-MMM-yyyy').format(_selectedDateRange!.start)} - ${DateFormat('dd-MMM-yyyy').format(_selectedDateRange!.end)}',
                   style: const TextStyle(fontSize: 16),
                 ),
                 IconButton(
@@ -125,18 +125,14 @@ class _IncomeScreenState extends State<IncomeScreen> {
 
         // Apply faculty-specific filtering
         if (widget.currentUser.position == 'Faculty') {
-          var studentIds = snapshot.data!.docs.map((doc) {
-            return doc['studentId'] as String;
-          }).toList();
           filteredTransactions = filteredTransactions.where((transaction) {
-            return studentIds.contains(transaction.studentId);
+            return transaction.studentId != null &&
+                transaction.studentId == widget.currentUser.empNumber;
           }).toList();
         }
 
         double totalIncomes = filteredTransactions.fold(
-            0,
-            (accumulatedSum, transaction) =>
-                accumulatedSum + transaction.amount);
+            0, (total, transaction) => total + transaction.amount);
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -189,11 +185,9 @@ class _IncomeScreenState extends State<IncomeScreen> {
 
         // Apply faculty-specific filtering
         if (widget.currentUser.position == 'Faculty') {
-          var studentIds = snapshot.data!.docs.map((doc) {
-            return doc['studentId'] as String;
-          }).toList();
           incomeTransactions = incomeTransactions.where((transaction) {
-            return studentIds.contains(transaction.studentId);
+            return transaction.studentId != null &&
+                transaction.studentId == widget.currentUser.empNumber;
           }).toList();
         }
 
@@ -251,6 +245,7 @@ class _IncomeScreenState extends State<IncomeScreen> {
                                   builder: (context) => AddIncomeScreen(
                                     currentUser: widget.currentUser,
                                     transaction: transaction,
+                                    transactionId: transaction.compositeKey,
                                   ),
                                 ),
                               ),
@@ -295,9 +290,12 @@ class _IncomeScreenState extends State<IncomeScreen> {
                 try {
                   await FirebaseFirestore.instance
                       .collection('transaction')
-                      .doc(transaction.journalNumber)
+                      .doc(transaction.compositeKey)
                       .delete();
-                  Navigator.of(context).pop();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+
                   scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Transaction deleted')),
                   );

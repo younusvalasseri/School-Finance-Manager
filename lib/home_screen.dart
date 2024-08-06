@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:week7_institute_project_2/generated/l10n.dart';
 import 'package:week7_institute_project_2/models/employee.dart';
-import 'package:week7_institute_project_2/screens/admin_screen.dart';
+import 'package:week7_institute_project_2/admin_screen.dart';
 import 'package:week7_institute_project_2/screens/employees_screen.dart';
 import 'package:week7_institute_project_2/screens/expenses_screen.dart';
 import 'package:week7_institute_project_2/screens/income_screen.dart';
@@ -104,18 +104,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                     double balance = totalIncome - totalExpense;
 
-                    return Expanded(
-                      child: Column(
-                        children: [
-                          Text(
-                            'User: ${widget.currentUser.name}',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                              'Total Balance: ₹ ${balance.toStringAsFixed(2)}'),
-                        ],
-                      ),
+                    return Column(
+                      children: [
+                        Text(
+                          'User: ${widget.currentUser.name}',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text('Total Balance: ₹ ${balance.toStringAsFixed(2)}'),
+                      ],
                     );
                   },
                 ),
@@ -153,13 +150,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 StudentsScreen(currentUser: widget.currentUser),
                 color: Colors.blue),
             const SizedBox(height: 15),
-            _buildCard(
-                context,
-                S.of(context).Transaction,
-                Icons.receipt_long,
-                TransactionsScreen(
-                  currentUser: widget.currentUser,
-                ),
+            _buildCard(context, S.of(context).Transaction, Icons.receipt_long,
+                TransactionsScreen(currentUser: widget.currentUser),
                 color: Colors.amber),
             const SizedBox(height: 15),
             if (widget.currentUser.username == 'admin') // Show only for admin

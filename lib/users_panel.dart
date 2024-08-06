@@ -1,130 +1,32 @@
-import 'package:flutter/material.dart';
+// ignore_for_file: unrelated_type_equality_checks
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/employee.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:week7_institute_project_2/models/employee.dart';
+import 'screens/add_employee_screen.dart';
 
 class UsersPanel extends StatefulWidget {
   const UsersPanel({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _UsersPanelState createState() => _UsersPanelState();
+  State<UsersPanel> createState() => _UsersPanelState();
 }
 
 class _UsersPanelState extends State<UsersPanel> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<void> _addUser() async {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final formKey = GlobalKey<FormState>();
-        String name = '';
-        String position = '';
-        String phone = '';
-        String address = '';
-        String password = '';
-        String role = 'General'; // Default role
-        bool isActive = true;
+  void _deleteUser(String empNumber) async {
+    // Delete from Firestore
+    await _firestore.collection('employees').doc(empNumber).delete();
 
-        return AlertDialog(
-          title: const Text('Add User'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Name'),
-                    validator: (value) => value!.isEmpty ? 'Required' : null,
-                    onSaved: (value) => name = value!,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Position'),
-                    validator: (value) => value!.isEmpty ? 'Required' : null,
-                    onSaved: (value) => position = value!,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Phone'),
-                    onSaved: (value) => phone = value!,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Address'),
-                    onSaved: (value) => address = value!,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    validator: (value) => value!.isEmpty ? 'Required' : null,
-                    onSaved: (value) => password = value!,
-                  ),
-                  DropdownButtonFormField<String>(
-                    value: role,
-                    items: [
-                      'Admin',
-                      'User',
-                      'General',
-                    ].map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      role = newValue!;
-                    },
-                    decoration: const InputDecoration(labelText: 'Role'),
-                  ),
-                  SwitchListTile(
-                    title: const Text('Active'),
-                    value: isActive,
-                    onChanged: (bool value) {
-                      isActive = value;
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Add'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  formKey.currentState!.save();
-                  final navigator = Navigator.of(context);
+    // Delete from Hive
+    var employeesBox = Hive.box<Employee>('employees');
+    var employeeToDelete =
+        employeesBox.values.firstWhere((e) => e.empNumber == empNumber);
+    employeeToDelete.delete();
 
-                  final newEmployee = Employee(
-                    empNumber: '',
-                    name: name,
-                    position: position,
-                    phone: phone,
-                    address: address,
-                    password: password,
-                    role: role,
-                    isActive: isActive,
-                  );
-
-                  await _firestore
-                      .collection('employees')
-                      .add(newEmployee.toFirestore());
-                  navigator.pop();
-                  setState(() {});
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _deleteUser(String id) async {
-    final navigator = Navigator.of(context);
-    await _firestore.collection('employees').doc(id).delete();
-    navigator.pop();
     setState(() {});
   }
 
@@ -175,6 +77,11 @@ class _UsersPanelState extends State<UsersPanel> {
         .collection('employees')
         .doc(id)
         .update(updatedEmployee.toFirestore());
+
+    // Update Hive
+    var employeesBox = Hive.box<Employee>('employees');
+    employeesBox.put(id, updatedEmployee);
+
     setState(() {});
   }
 
@@ -183,6 +90,12 @@ class _UsersPanelState extends State<UsersPanel> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Panel'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _syncData,
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore.collection('employees').snapshots(),
@@ -251,10 +164,48 @@ class _UsersPanelState extends State<UsersPanel> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addUser,
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddEmployeeScreen(),
+          ),
+        ),
         tooltip: 'Add User',
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  void _syncData() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      var employeesBox = Hive.box<Employee>('employees');
+      var employeesCollection =
+          FirebaseFirestore.instance.collection('employees');
+
+      // Push local changes to Firebase if not already existing
+      for (var employee in employeesBox.values) {
+        var docSnapshot =
+            await employeesCollection.doc(employee.empNumber).get();
+        if (!docSnapshot.exists) {
+          await employeesCollection
+              .doc(employee.empNumber)
+              .set(employee.toFirestore());
+        }
+      }
+
+      employeesBox.clear(); // Clear the local data after syncing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data synced to Firestore')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No internet connection')),
+        );
+      }
+    }
   }
 }

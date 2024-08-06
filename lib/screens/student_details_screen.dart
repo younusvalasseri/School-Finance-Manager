@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,7 +11,6 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../models/student.dart';
 import '../models/employee.dart';
 import 'student_details_income.dart';
@@ -17,11 +18,16 @@ import '../custom_date_range_picker.dart';
 
 class StudentDetailsScreen extends StatefulWidget {
   final Student student;
+  final VoidCallback onUpdate;
 
-  const StudentDetailsScreen({super.key, required this.student});
+  const StudentDetailsScreen({
+    super.key,
+    required this.student,
+    required this.onUpdate,
+  });
 
   @override
-  _StudentDetailsScreenState createState() => _StudentDetailsScreenState();
+  State<StudentDetailsScreen> createState() => _StudentDetailsScreenState();
 }
 
 class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
@@ -37,7 +43,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   double _calculateCollectedFee() {
     double collectedFee = 0.0;
     FirebaseFirestore.instance
-        .collection('transaction')
+        .collection('transaction') // Corrected collection name
         .where('mainCategory', isEqualTo: 'Student Fee')
         .where('studentId', isEqualTo: widget.student.admNumber)
         .get()
@@ -51,50 +57,113 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedImage =
+          await picker.pickImage(source: ImageSource.gallery);
 
-    if (image != null) {
-      try {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('profile_pictures/${_student.admNumber}');
-        await storageRef.putFile(File(image.path));
-        final downloadUrl = await storageRef.getDownloadURL();
-
-        setState(() {
-          _student.profilePicture = downloadUrl;
-        });
-        await FirebaseFirestore.instance
-            .collection('students')
-            .doc(_student.admNumber)
-            .update({'profilePicture': downloadUrl});
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e')),
-        );
+      if (pickedImage == null) {
+        // User canceled the picker
+        return;
       }
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedImage.path,
+        aspectRatio:
+            const CropAspectRatio(ratioX: 1, ratioY: 1), // Square aspect ratio
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 100,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Colors.deepOrange,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop Image',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        // Preview the image
+        final result = await _showImagePreviewDialog(croppedFile.path);
+
+        if (result == true) {
+          setState(() {
+            _student.profilePicture = croppedFile.path;
+          });
+          await _saveProfilePictureToHive();
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking or cropping image: $e')),
+      );
+    }
+  }
+
+  Future<bool?> _showImagePreviewDialog(String imagePath) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Preview'),
+          content: Image.file(File(imagePath)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _saveProfilePictureToHive() async {
+    if (_student.profilePicture != null) {
+      var studentsBox = Hive.box<Student>('students');
+      await studentsBox.put(_student.admNumber, _student);
+      widget.onUpdate();
+      setState(() {});
     }
   }
 
   Future<void> _deleteProfilePicture() async {
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_pictures/${_student.admNumber}');
-      await storageRef.delete();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
+    try {
       setState(() {
         _student.profilePicture = null;
       });
-      await FirebaseFirestore.instance
-          .collection('students')
-          .doc(_student.admNumber)
-          .update({'profilePicture': null});
+
+      var studentsBox = Hive.box<Student>('students');
+      await studentsBox.put(_student.admNumber, _student);
+      widget.onUpdate();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Error deleting image: $e')),
       );
+    }
+  }
+
+  Future<void> syncStudentDataToFirestore() async {
+    var studentsBox = Hive.box<Student>('students');
+    for (var student in studentsBox.values) {
+      await FirebaseFirestore.instance
+          .collection('students')
+          .doc(student.admNumber)
+          .set(student.toFirestore());
     }
   }
 
@@ -135,7 +204,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                   child: CircleAvatar(
                     radius: 60,
                     backgroundImage: _student.profilePicture != null
-                        ? NetworkImage(_student.profilePicture!)
+                        ? FileImage(File(_student.profilePicture!))
                         : null,
                     child: _student.profilePicture == null
                         ? const Icon(Icons.add_a_photo, size: 40)

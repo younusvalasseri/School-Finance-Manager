@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:week7_institute_project_2/generated/l10n.dart';
 import 'package:week7_institute_project_2/models/employee.dart';
 import 'income_vs_expense_report.dart';
+import 'student_fee_collection_report.dart';
 import 'students_collection_vs_pending_report.dart';
-// import 'student_fee_collection_report.dart';
 import 'students_per_course.dart';
 import 'transactions_per_category.dart';
 
@@ -31,12 +31,12 @@ class ReportsScreen extends StatelessWidget {
             Icons.pie_chart,
             const IncomeVsExpenseReport(),
           ),
-          // _buildCard(
-          //   context,
-          //   'Fee Collection Report',
-          //   Icons.school,
-          //   const StudentFeeCollectionReport(),
-          // ),
+          _buildCard(
+            context,
+            'Fee Collection Report',
+            Icons.school,
+            const StudentFeeCollectionReport(),
+          ),
           _buildCard(
             context,
             'Students per Course',

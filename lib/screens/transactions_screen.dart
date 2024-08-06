@@ -130,9 +130,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         }).toList();
 
         double totalExpenses = filteredExpenseTransactions.fold(
-            0, (sum, doc) => sum + (doc['amount'] as num).toDouble());
+            0, (total, doc) => total + (doc['amount'] as num).toDouble());
         double totalIncomes = filteredIncomeTransactions.fold(
-            0, (sum, doc) => sum + (doc['amount'] as num).toDouble());
+            0, (total, doc) => total + (doc['amount'] as num).toDouble());
 
         double balance = totalIncomes - totalExpenses;
         Color balanceColor =
@@ -221,6 +221,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 builder: (context) => AddTransactionScreen(
                                   transaction: transaction,
                                   currentUser: widget.currentUser,
+                                  transactionId: transaction.compositeKey,
                                 ),
                               ),
                             ),
@@ -261,7 +262,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               onPressed: () {
                 FirebaseFirestore.instance
                     .collection('transaction')
-                    .doc(transaction.journalNumber)
+                    .doc(transaction.compositeKey)
                     .delete();
                 Navigator.of(context).pop();
               },

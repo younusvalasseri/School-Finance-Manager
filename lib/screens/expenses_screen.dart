@@ -56,8 +56,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) =>
-                  AddExpensesScreen(currentUser: widget.currentUser)),
+            builder: (context) =>
+                AddExpensesScreen(currentUser: widget.currentUser),
+          ),
         ),
         tooltip: 'Add Expense',
         child: const Icon(Icons.add),
@@ -122,7 +123,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         }).toList();
 
         double totalExpenses = filteredTransactions.fold(
-            0, (sum, transaction) => sum + transaction.amount);
+            0, (total, transaction) => total + transaction.amount);
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -227,6 +228,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                   builder: (context) => AddExpensesScreen(
                                     currentUser: widget.currentUser,
                                     transaction: transaction,
+                                    transactionId: transaction.compositeKey,
                                     // index: index, // Removed index as it's not needed in Firestore
                                   ),
                                 ),
@@ -272,10 +274,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 try {
                   await FirebaseFirestore.instance
                       .collection('transaction')
-                      .doc(transaction
-                          .journalNumber) // Assuming journalNumber is unique
+                      .doc(transaction.compositeKey)
                       .delete();
-                  Navigator.of(context).pop();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+
                   scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Transaction deleted')),
                   );

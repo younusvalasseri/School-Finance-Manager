@@ -1,9 +1,14 @@
-import 'package:flutter/material.dart';
+// ignore_for_file: unrelated_type_equality_checks
+
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:week7_institute_project_2/generated/l10n.dart';
 import 'package:week7_institute_project_2/models/employee.dart';
+import 'package:week7_institute_project_2/models/student.dart';
 import 'package:week7_institute_project_2/screens/add_students_screen.dart';
-import '../models/student.dart';
 import 'student_details_screen.dart';
 
 class StudentsScreen extends StatefulWidget {
@@ -17,13 +22,59 @@ class StudentsScreen extends StatefulWidget {
 
 class _StudentsScreenState extends State<StudentsScreen> {
   String _searchQuery = '';
+  late Box<Student> studentsBox;
 
-  void _markStudentAsDeleted(String id) async {
-    await FirebaseFirestore.instance
-        .collection('students')
-        .doc(id)
-        .update({'isDeleted': true});
-    setState(() {});
+  @override
+  void initState() {
+    super.initState();
+    studentsBox = Hive.box<Student>('students');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    setState(() {}); // Trigger a rebuild to reflect changes
+  }
+
+  void _softDeleteStudent(BuildContext context, Student student) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Delete'),
+          content: const Text('Are you sure you want to delete this student?'),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () async {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('students')
+                      .doc(student.admNumber)
+                      .update({'isDeleted': true});
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Student deleted')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error deleting student: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<double> _calculateCollectedFee(String admNumber) async {
@@ -39,9 +90,45 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return collectedFee;
   }
 
-  Future<double> _calculateBalance(Student student) async {
-    double collectedFee = await _calculateCollectedFee(student.admNumber);
-    return (student.courseFee ?? 0) - collectedFee;
+  void _syncData() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      var studentsBox = Hive.box<Student>('students');
+      var studentsCollection =
+          FirebaseFirestore.instance.collection('students');
+
+      // Push local changes to Firebase if not already existing
+      for (var student in studentsBox.values) {
+        var docSnapshot = await studentsCollection.doc(student.admNumber).get();
+        if (!docSnapshot.exists) {
+          await studentsCollection
+              .doc(student.admNumber)
+              .set(student.toFirestore());
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data synced to Firestore')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No internet connection')),
+        );
+      }
+    }
+  }
+
+  void _clearHiveData() async {
+    var studentsBox = Hive.box<Student>('students');
+    await studentsBox.clear();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All Hive data cleared')),
+      );
+    }
   }
 
   @override
@@ -49,6 +136,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(S.of(context).Students),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _syncData,
+          ),
+          if (widget.currentUser.username == 'admin')
+            IconButton(
+              icon: const Icon(Icons.delete_forever),
+              onPressed: _clearHiveData,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -81,6 +179,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
                 students.sort((a, b) => a.name.compareTo(b.name));
 
+                // Merge Hive profile pictures with Firestore data
+                for (var student in students) {
+                  Student? hiveStudent = studentsBox.get(student.admNumber);
+                  if (hiveStudent?.profilePicture != null) {
+                    student.profilePicture = hiveStudent!.profilePicture;
+                  }
+                }
+
                 if (students.isEmpty) {
                   return const Center(child: Text('No students yet'));
                 }
@@ -89,6 +195,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   itemCount: students.length,
                   itemBuilder: (context, index) {
                     final student = students[index];
+                    String? profilePicture = student.profilePicture;
+
                     return FutureBuilder<double>(
                       future: _calculateCollectedFee(student.admNumber),
                       builder: (context, snapshot) {
@@ -105,8 +213,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    StudentDetailsScreen(student: student),
+                                builder: (context) => StudentDetailsScreen(
+                                  student: student,
+                                  onUpdate: () =>
+                                      setState(() {}), // Pass the callback
+                                ),
                               ),
                             ),
                             child: Padding(
@@ -118,12 +229,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                   Column(
                                     children: [
                                       CircleAvatar(
-                                        backgroundImage:
-                                            student.profilePicture != null
-                                                ? NetworkImage(
-                                                    student.profilePicture!)
-                                                : null,
-                                        child: student.profilePicture == null
+                                        backgroundImage: profilePicture != null
+                                            ? FileImage(File(profilePicture))
+                                            : null,
+                                        child: profilePicture == null
                                             ? Text(student.name[0])
                                             : null,
                                       ),
@@ -182,8 +291,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.delete),
-                                        onPressed: () => _markStudentAsDeleted(
-                                            student.admNumber),
+                                        onPressed: () => _softDeleteStudent(
+                                            context, student),
                                       ),
                                     ],
                                   ),

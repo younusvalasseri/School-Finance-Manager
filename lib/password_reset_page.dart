@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:week7_institute_project_2/models/employee.dart';
 
 class PasswordResetPage extends StatelessWidget {
   const PasswordResetPage({super.key});
@@ -37,6 +39,16 @@ class PasswordResetPage extends StatelessWidget {
               await employeesCollection.doc(employeeDoc.id).update({
                 'password': newPassword,
               });
+
+              // Update Hive
+              var employeesBox = Hive.box<Employee>('employees');
+              var employee = employeesBox.values.firstWhereOrNull(
+                (e) => e.username == username,
+              );
+              if (employee != null) {
+                employee.password = newPassword;
+                await employee.save();
+              }
 
               navigator.pop();
               scaffoldMessenger.showSnackBar(
@@ -102,5 +114,14 @@ class PasswordResetPage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+extension FirstWhereOrNullExtension<E> on Iterable<E> {
+  E? firstWhereOrNull(bool Function(E) test) {
+    for (E element in this) {
+      if (test(element)) return element;
+    }
+    return null;
   }
 }

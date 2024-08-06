@@ -12,15 +12,15 @@ class AddIncomeScreen extends StatefulWidget {
   final String? transactionId;
   final Employee currentUser;
 
-  const AddIncomeScreen(
-      {super.key,
-      this.transaction,
-      this.transactionId,
-      required this.currentUser});
+  const AddIncomeScreen({
+    super.key,
+    this.transaction,
+    this.transactionId,
+    required this.currentUser,
+  });
 
   @override
-  // ignore: library_private_types_in_public_api
-  _AddIncomeScreenState createState() => _AddIncomeScreenState();
+  State<AddIncomeScreen> createState() => _AddIncomeScreenState();
 }
 
 class _AddIncomeScreenState extends State<AddIncomeScreen> {
@@ -66,13 +66,13 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               buildTextFormField(
                 labelText: 'Journal Number',
                 initialValue: journalNumber,
-                onSaved: (value) => journalNumber = value!,
+                onSaved: (value) => journalNumber = value ?? '',
                 validator: (value) => value!.isEmpty ? 'Required' : null,
               ),
               buildTextFormField(
                 labelText: 'Entry Number',
                 initialValue: entryNumber,
-                onSaved: (value) => entryNumber = value!,
+                onSaved: (value) => entryNumber = value ?? '',
                 validator: (value) => value!.isEmpty ? 'Required' : null,
               ),
               buildDatePickerField(
@@ -89,7 +89,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('categories')
-                    .where('type', isEqualTo: 'Income')
+                    .where('type', isEqualTo: 'Incomes')
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
@@ -107,7 +107,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                     }).toList(),
                     onChanged: (String? newValue) {
                       setState(() {
-                        mainCategory = newValue!;
+                        mainCategory = newValue ?? '';
                       });
                     },
                     validator: (value) => value == null ? 'Required' : null,
@@ -117,7 +117,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               buildTextFormField(
                 labelText: 'Sub Category',
                 initialValue: subCategory,
-                onSaved: (value) => subCategory = value!,
+                onSaved: (value) => subCategory = value ?? '',
               ),
               buildTextFormField(
                 labelText: 'Amount',
@@ -129,7 +129,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               buildTextFormField(
                 labelText: 'Note',
                 initialValue: note ?? '',
-                onSaved: (value) => note = value,
+                onSaved: (value) => note = value ?? '',
               ),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -174,7 +174,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                     items: items,
                     onChanged: (String? newValue) {
                       setState(() {
-                        studentId = newValue!;
+                        studentId = newValue;
                       });
                     },
                     onSaved: (value) => studentId = value,
@@ -216,7 +216,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                     items: items,
                     onChanged: (String? newValue) {
                       setState(() {
-                        employeeId = newValue!;
+                        employeeId = newValue;
                       });
                     },
                     onSaved: (value) => employeeId = value,
@@ -313,7 +313,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
         CRUDOperations().createTransaction(newTransaction);
       } else {
         CRUDOperations()
-            .updateTransaction(widget.transactionId!, newTransaction);
+            .updateTransaction(newTransaction.compositeKey, newTransaction);
       }
 
       Navigator.of(context).pop();

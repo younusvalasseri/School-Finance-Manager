@@ -1,8 +1,13 @@
-import 'package:flutter/material.dart';
+// ignore_for_file: unrelated_type_equality_checks
+
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:week7_institute_project_2/generated/l10n.dart';
-import 'package:week7_institute_project_2/screens/add_employee_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../generated/l10n.dart';
 import '../models/employee.dart';
+import '../screens/add_employee_screen.dart';
 import 'employee_details_screen.dart';
 
 class EmployeesScreen extends StatefulWidget {
@@ -16,12 +21,35 @@ class EmployeesScreen extends StatefulWidget {
 
 class _EmployeesScreenState extends State<EmployeesScreen> {
   String _searchQuery = '';
+  late Box<Employee> employeesBox;
+
+  @override
+  void initState() {
+    super.initState();
+    employeesBox = Hive.box<Employee>('employees');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    setState(() {}); // Trigger a rebuild to reflect changes
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(S.of(context).Employees),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _syncData,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_forever),
+            onPressed: _clearHiveData,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -93,18 +121,26 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
               employee.name.toLowerCase().contains(_searchQuery.toLowerCase()));
         }
 
+        // Merge Hive profile pictures with Firestore data
+        for (var employee in employees) {
+          Employee? hiveEmployee = employeesBox.get(employee.empNumber);
+          if (hiveEmployee?.profilePicture != null) {
+            employee.profilePicture = hiveEmployee!.profilePicture;
+          }
+        }
+
         return ListView.builder(
           itemCount: employees.length,
           itemBuilder: (context, index) {
             final employee = employees[index];
+            String? profilePicture = employee.profilePicture;
+
             return ListTile(
               leading: CircleAvatar(
-                backgroundImage: employee.profilePicture != null
-                    ? NetworkImage(employee.profilePicture!)
+                backgroundImage: profilePicture != null
+                    ? FileImage(File(profilePicture))
                     : null,
-                child: employee.profilePicture == null
-                    ? Text(employee.name[0])
-                    : null,
+                child: profilePicture == null ? Text(employee.name[0]) : null,
               ),
               title: Text(employee.name),
               subtitle: employee.isActive
@@ -131,6 +167,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                       MaterialPageRoute(
                         builder: (context) => AddEmployeeScreen(
                           employee: employee,
+                          employeeId: employee.empNumber,
                         ),
                       ),
                     ),
@@ -147,6 +184,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   builder: (context) => EmployeeDetailsScreen(
                     employee: employee,
                     currentUser: widget.currentUser,
+                    onUpdate: () => setState(() {}), // Pass the callback
                   ),
                 ),
               ),
@@ -178,8 +216,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                       .collection('employees')
                       .doc(employee.empNumber)
                       .update({'isActive': false});
-                  // ignore: use_build_context_synchronously
-                  Navigator.of(context).pop();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+
                   scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Employee deleted')),
                   );
@@ -194,5 +234,48 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         );
       },
     );
+  }
+
+  void _syncData() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      var employeesBox = Hive.box<Employee>('employees');
+      var employeesCollection =
+          FirebaseFirestore.instance.collection('employees');
+
+      // Push local changes to Firebase if not already existing
+      for (var employee in employeesBox.values) {
+        var docSnapshot =
+            await employeesCollection.doc(employee.empNumber).get();
+        if (!docSnapshot.exists) {
+          await employeesCollection
+              .doc(employee.empNumber)
+              .set(employee.toFirestore());
+        }
+      }
+
+      employeesBox.clear(); // Clear the local data after syncing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data synced to Firestore')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No internet connection')),
+        );
+      }
+    }
+  }
+
+  void _clearHiveData() async {
+    var employeesBox = Hive.box<Employee>('employees');
+    await employeesBox.clear();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All Hive data cleared')),
+      );
+    }
   }
 }

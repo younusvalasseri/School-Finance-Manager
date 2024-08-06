@@ -1,9 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
+part 'category.g.dart';
+
+@HiveType(typeId: 4)
 class Category {
-  String description;
-  String type; // Income or Expense
-  bool isTaxable;
+  @HiveField(0)
+  late String description;
+
+  @HiveField(1)
+  late String type; // "income" or "expense"
+
+  @HiveField(2)
+  late bool isTaxable;
 
   Category({
     required this.description,

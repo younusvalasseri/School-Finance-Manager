@@ -3,7 +3,7 @@ import 'package:week7_institute_project_2/models/employee.dart';
 import 'package:week7_institute_project_2/screens/categories_screen.dart';
 import 'package:week7_institute_project_2/password_reset_page.dart';
 import 'package:week7_institute_project_2/users_panel.dart';
-import 'course_details.dart';
+import 'screens/course_details.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key, required Employee currentUser});

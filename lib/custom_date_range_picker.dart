@@ -8,8 +8,7 @@ class CustomDateRangePicker extends StatefulWidget {
   const CustomDateRangePicker({super.key, this.initialDateRange});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _CustomDateRangePickerState createState() => _CustomDateRangePickerState();
+  State<CustomDateRangePicker> createState() => _CustomDateRangePickerState();
 }
 
 class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
@@ -38,21 +37,61 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
     super.dispose();
   }
 
-  void _updateStartDate(String value) {
-    try {
-      _startDate = _dateFormat.parse(value);
-      setState(() {});
-    } catch (e) {
-      // Handle invalid date format
+  Future<void> _selectStartDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate:
+          _startDate.isBefore(DateTime(2000)) ? DateTime.now() : _startDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != _startDate) {
+      setState(() {
+        _startDate = picked;
+        _startDateController.text = _dateFormat.format(_startDate);
+      });
     }
   }
 
-  void _updateEndDate(String value) {
+  Future<void> _selectEndDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate:
+          _endDate.isBefore(DateTime(2000)) ? DateTime.now() : _endDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != _endDate) {
+      setState(() {
+        _endDate = picked;
+        _endDateController.text = _dateFormat.format(_endDate);
+      });
+    }
+  }
+
+  void _showInvalidDateFormatMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Wrong input type'),
+      ),
+    );
+  }
+
+  void _validateAndSubmit() {
     try {
-      _endDate = _dateFormat.parse(value);
-      setState(() {});
+      _startDate = _dateFormat.parse(_startDateController.text);
+      _endDate = _dateFormat.parse(_endDateController.text);
+
+      if (_endDate.isBefore(_startDate)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('End date must be after start date')),
+        );
+      } else {
+        Navigator.of(context)
+            .pop(DateTimeRange(start: _startDate, end: _endDate));
+      }
     } catch (e) {
-      // Handle invalid date format
+      _showInvalidDateFormatMessage();
     }
   }
 
@@ -69,26 +108,54 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _startDateController,
-              decoration: const InputDecoration(
-                labelText: 'Start Date',
-                hintText: 'dd/MMM/yyyy (e.g., 15/Jun/2023)',
+            Focus(
+              onFocusChange: (hasFocus) {
+                if (!hasFocus) {
+                  try {
+                    _dateFormat.parse(_startDateController.text);
+                  } catch (e) {
+                    _showInvalidDateFormatMessage();
+                  }
+                }
+              },
+              child: TextField(
+                controller: _startDateController,
+                decoration: InputDecoration(
+                  labelText: 'Start Date',
+                  hintText: 'dd/MMM/yyyy (e.g., 15/Jun/2023)',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: () => _selectStartDate(context),
+                  ),
+                ),
+                inputFormatters: [DateTextInputFormatter()],
+                keyboardType: TextInputType.text,
               ),
-              inputFormatters: [DateTextInputFormatter()],
-              keyboardType: TextInputType.text,
-              onChanged: _updateStartDate,
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _endDateController,
-              decoration: const InputDecoration(
-                labelText: 'End Date',
-                hintText: 'dd/MMM/yyyy (e.g., 22/Jun/2023)',
+            Focus(
+              onFocusChange: (hasFocus) {
+                if (!hasFocus) {
+                  try {
+                    _dateFormat.parse(_endDateController.text);
+                  } catch (e) {
+                    _showInvalidDateFormatMessage();
+                  }
+                }
+              },
+              child: TextField(
+                controller: _endDateController,
+                decoration: InputDecoration(
+                  labelText: 'End Date',
+                  hintText: 'dd/MMM/yyyy (e.g., 22/Jun/2023)',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: () => _selectEndDate(context),
+                  ),
+                ),
+                inputFormatters: [DateTextInputFormatter()],
+                keyboardType: TextInputType.text,
               ),
-              inputFormatters: [DateTextInputFormatter()],
-              keyboardType: TextInputType.datetime,
-              onChanged: _updateEndDate,
             ),
             const SizedBox(height: 16),
             Row(
@@ -99,17 +166,7 @@ class _CustomDateRangePickerState extends State<CustomDateRangePicker> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    if (_endDate.isBefore(_startDate)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('End date must be after start date')),
-                      );
-                    } else {
-                      Navigator.of(context)
-                          .pop(DateTimeRange(start: _startDate, end: _endDate));
-                    }
-                  },
+                  onPressed: _validateAndSubmit,
                   child: const Text('Done'),
                 ),
               ],

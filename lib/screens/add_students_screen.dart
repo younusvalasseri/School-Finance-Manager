@@ -1,9 +1,13 @@
+// ignore_for_file: unrelated_type_equality_checks
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:week7_institute_project_2/crud_operations.dart';
 import '../models/student.dart';
 import '../models/courses.dart';
 import '../models/employee.dart';
+import '../crud_operations.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final Student? student;
@@ -11,8 +15,7 @@ class AddStudentScreen extends StatefulWidget {
   const AddStudentScreen({super.key, this.student, this.index});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _AddStudentScreenState createState() => _AddStudentScreenState();
+  State<AddStudentScreen> createState() => _AddStudentScreenState();
 }
 
 class _AddStudentScreenState extends State<AddStudentScreen> {
@@ -27,10 +30,13 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       address,
       classTeacher;
   late double courseFee;
+  late Future<Box<Courses>> _coursesBoxFuture;
+  final _employeesBox = Hive.box<Employee>('employees');
 
   @override
   void initState() {
     super.initState();
+    _coursesBoxFuture = _openCoursesBox();
     final student = widget.student;
     admNumber = student?.admNumber ?? '';
     name = student?.name ?? '';
@@ -44,141 +50,183 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     classTeacher = student?.classTeacher ?? 'Select Teacher';
   }
 
+  Future<Box<Courses>> _openCoursesBox() async {
+    var box = await Hive.openBox<Courses>('courses');
+    await _syncCoursesData(box);
+    return box;
+  }
+
+  Future<void> _syncCoursesData(Box<Courses> coursesBox) async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      var coursesCollection = FirebaseFirestore.instance.collection('courses');
+
+      // Fetch courses from Firestore and populate Hive
+      var firestoreDocs = await coursesCollection.get();
+      for (var doc in firestoreDocs.docs) {
+        var course = Courses.fromFirestore(doc);
+        if (!coursesBox.containsKey(course.courseName)) {
+          await coursesBox.put(course.courseName, course);
+        }
+      }
+
+      // Sync data from Hive to Firestore
+      for (var course in coursesBox.values) {
+        var docSnapshot = await coursesCollection.doc(course.courseName).get();
+        if (!docSnapshot.exists) {
+          await coursesCollection
+              .doc(course.courseName)
+              .set(course.toFirestore());
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.student == null ? 'Add Student' : 'Edit Student'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                buildTextFormField(
-                  initialValue: admNumber,
-                  labelText: 'Admission Number',
-                  onSaved: (value) => admNumber = value!,
-                ),
-                buildTextFormField(
-                  initialValue: name,
-                  labelText: 'Name',
-                  onSaved: (value) => name = value!,
-                ),
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('courses')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircularProgressIndicator();
-                    }
-                    return buildDropdownButtonFormField(
-                      labelText: 'Course',
-                      value: course.isEmpty ? null : course,
-                      items: snapshot.data!.docs.map((doc) {
-                        final course = Courses.fromFirestore(doc);
-                        return DropdownMenuItem<String>(
-                          value: course.courseName!,
-                          child: Text(course.courseName ?? 'No name'),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          course = newValue!;
-                        });
-                      },
-                      onSaved: (value) => course = value!,
-                    );
-                  },
-                ),
-                buildTextFormField(
-                  initialValue: batch,
-                  labelText: 'Batch',
-                  onSaved: (value) => batch = value!,
-                ),
-                buildTextFormField(
-                  initialValue: fatherPhone,
-                  labelText: 'Father\'s Phone',
-                  validator: (value) =>
-                      value!.isEmpty ? null : _validatePhone(value),
-                  onSaved: (value) => fatherPhone = value!,
-                ),
-                buildTextFormField(
-                  initialValue: motherPhone,
-                  labelText: 'Mother\'s Phone',
-                  validator: (value) =>
-                      value!.isEmpty ? null : _validatePhone(value),
-                  onSaved: (value) => motherPhone = value!,
-                ),
-                buildTextFormField(
-                  initialValue: studentPhone,
-                  labelText: 'Student\'s Phone',
-                  validator: _validatePhone,
-                  onSaved: (value) => studentPhone = value!,
-                ),
-                buildTextFormField(
-                  initialValue: address,
-                  labelText: 'Address',
-                  onSaved: (value) => address = value!,
-                ),
-                buildTextFormField(
-                  initialValue: courseFee != 0 ? courseFee.toString() : '',
-                  labelText: 'Course Fee',
-                  keyboardType: TextInputType.number,
-                  onSaved: (value) => courseFee = double.tryParse(value!) ?? 0,
-                ),
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('employees')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircularProgressIndicator();
-                    }
-                    final employees = snapshot.data!.docs
-                        .map((doc) {
-                          final employee = Employee.fromFirestore(doc);
-                          return employee;
-                        })
-                        .where((employee) => employee.position == 'Faculty')
-                        .toList();
+      body: FutureBuilder<Box<Courses>>(
+        future: _coursesBoxFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                    return buildDropdownButtonFormField(
-                      labelText: 'Class Teacher',
-                      value: classTeacher,
-                      items: [
-                        const DropdownMenuItem(
-                          value: 'Select Teacher',
-                          child: Text('Select Teacher'),
-                        ),
-                        ...employees.map((employee) {
-                          return DropdownMenuItem<String>(
-                            value: employee.empNumber,
-                            child: Text(employee.name),
-                          );
-                        }).toList(),
-                      ],
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          classTeacher = newValue!;
-                        });
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(child: Text('No data'));
+          }
+
+          var coursesBox = snapshot.data!;
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    buildTextFormField(
+                      initialValue: admNumber,
+                      labelText: 'Admission Number',
+                      onSaved: (value) => admNumber = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: name,
+                      labelText: 'Name',
+                      onSaved: (value) => name = value!,
+                    ),
+                    ValueListenableBuilder(
+                      valueListenable: coursesBox.listenable(),
+                      builder: (context, Box<Courses> box, _) {
+                        if (box.values.isEmpty) {
+                          return const Text('No courses available');
+                        }
+                        return buildDropdownButtonFormField(
+                          labelText: 'Course',
+                          value: course.isEmpty ? null : course,
+                          items: box.values.map((Courses course) {
+                            return DropdownMenuItem<String>(
+                              value: course.courseName!,
+                              child: Text(course.courseName ?? 'No name'),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            course = newValue!;
+                          },
+                          onSaved: (value) => course = value!,
+                        );
                       },
-                      onSaved: (value) => classTeacher = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: batch,
+                      labelText: 'Batch',
+                      onSaved: (value) => batch = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: fatherPhone,
+                      labelText: 'Father\'s Phone',
                       validator: (value) =>
-                          value == 'Select Teacher' ? 'Required' : null,
-                    );
-                  },
+                          value!.isEmpty ? null : _validatePhone(value),
+                      onSaved: (value) => fatherPhone = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: motherPhone,
+                      labelText: 'Mother\'s Phone',
+                      validator: (value) =>
+                          value!.isEmpty ? null : _validatePhone(value),
+                      onSaved: (value) => motherPhone = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: studentPhone,
+                      labelText: 'Student\'s Phone',
+                      validator: _validatePhone,
+                      onSaved: (value) => studentPhone = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: address,
+                      labelText: 'Address',
+                      onSaved: (value) => address = value!,
+                    ),
+                    buildTextFormField(
+                      initialValue: courseFee != 0 ? courseFee.toString() : '',
+                      labelText: 'Course Fee',
+                      keyboardType: TextInputType.number,
+                      onSaved: (value) =>
+                          courseFee = double.tryParse(value!) ?? 0,
+                    ),
+                    ValueListenableBuilder(
+                      valueListenable: _employeesBox.listenable(),
+                      builder: (context, Box<Employee> box, _) {
+                        List<DropdownMenuItem<String>> items = [
+                          const DropdownMenuItem(
+                            value: 'Select Teacher',
+                            child: Text('Select Teacher'),
+                          ),
+                          ...box.values
+                              .where(
+                                  (employee) => employee.position == 'Faculty')
+                              .map((employee) {
+                            return DropdownMenuItem<String>(
+                              value: employee.empNumber,
+                              child: Text(employee.name),
+                            );
+                          }),
+                        ];
+
+                        if (!items.any((item) => item.value == classTeacher)) {
+                          classTeacher = 'Select Teacher';
+                        }
+
+                        return buildDropdownButtonFormField(
+                          labelText: 'Class Teacher',
+                          value: classTeacher,
+                          items: items,
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              classTeacher = newValue!;
+                            });
+                          },
+                          onSaved: (value) => classTeacher = value!,
+                          validator: (value) =>
+                              value == 'Select Teacher' ? 'Required' : null,
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _saveStudent,
+        onPressed: _saveStudent, // Update the state to reflect changes
         child: const Icon(Icons.save),
       ),
     );
@@ -234,16 +282,36 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         classTeacher: classTeacher,
       );
 
-      final navigator = Navigator.of(context); // Store the navigator context
-
-      if (widget.student == null) {
-        await CRUDOperations().createStudent(newStudent);
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult == ConnectivityResult.none) {
+        // Show a SnackBar when there is no connectivity
+        // if (mounted) {
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     const SnackBar(
+        //       content: Text(
+        //           'No internet, the data has been saved locally. Please press back arrow to close.'),
+        //     ),
+        //   );
+        // }
+        //// Save to Firestore if internet connection is available
+        if (widget.student == null) {
+          await CRUDOperations().createStudent(newStudent);
+        } else {
+          await CRUDOperations().updateStudent(admNumber, newStudent);
+        }
       } else {
-        await CRUDOperations()
-            .updateStudent(widget.student!.admNumber, newStudent);
-      }
+        // Save to Hive if no internet connection
+        var studentsBox = Hive.box<Student>('students');
+        await studentsBox.put(newStudent.admNumber, newStudent);
 
-      navigator.pop(); // Use the stored navigator context
+        // Sync data to Firestore if connectivity is available
+        await CRUDOperations.syncHiveDataToFirestore();
+
+        // Pop the screen after saving the data
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
     }
   }
 

@@ -1,15 +1,35 @@
+// ignore_for_file: unrelated_type_equality_checks
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class CourseDetailsScreen extends StatefulWidget {
   const CourseDetailsScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _CourseDetailsScreenState createState() => _CourseDetailsScreenState();
+  State<CourseDetailsScreen> createState() => _CourseDetailsScreenState();
 }
 
 class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
+  late Box<Courses> _coursesBox;
+
+  @override
+  void initState() {
+    super.initState();
+    _openBox();
+  }
+
+  Future<void> _openBox() async {
+    if (!Hive.isBoxOpen('courses')) {
+      _coursesBox = await Hive.openBox<Courses>('courses');
+    } else {
+      _coursesBox = Hive.box<Courses>('courses');
+    }
+    await _syncData(); // Automatically sync data on app start
+  }
+
   void _showAddCourseDialog() {
     final formKey = GlobalKey<FormState>();
     String courseName = '';
@@ -48,7 +68,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
             ),
             TextButton(
               child: const Text('Add'),
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   final newCourse = Courses(
@@ -57,7 +77,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                   );
 
                   _addCourse(newCourse);
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Close the dialog
+                  setState(() {});
                 }
               },
             ),
@@ -107,13 +128,15 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
             ),
             TextButton(
               child: const Text('Save'),
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   course.courseName = courseName;
                   course.courseDescription = courseDescription;
-                  _updateCourse(course);
-                  Navigator.of(context).pop();
+                  await _updateCourse(course);
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
                 }
               },
             ),
@@ -137,9 +160,11 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
             ),
             TextButton(
               child: const Text('Delete'),
-              onPressed: () {
-                _deleteCourseFromFirestore(course);
-                Navigator.of(context).pop();
+              onPressed: () async {
+                await _deleteCourseFromFirestore(course);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
               },
             ),
           ],
@@ -149,23 +174,78 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   }
 
   Future<void> _addCourse(Courses course) async {
-    await FirebaseFirestore.instance
-        .collection('courses')
-        .add(course.toFirestore());
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.none) {
+      // Save to Hive if no internet connection
+      await _coursesBox.put(course.courseName, course);
+    } else {
+      // Save to Firestore if internet connection is available
+      await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(course.courseName)
+          .set(course.toFirestore());
+      await _coursesBox.put(course.courseName, course);
+    }
   }
 
   Future<void> _updateCourse(Courses course) async {
-    await FirebaseFirestore.instance
-        .collection('courses')
-        .doc(course.id)
-        .update(course.toFirestore());
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.none) {
+      // Save to Hive if no internet connection
+      await _coursesBox.put(course.courseName, course);
+    } else {
+      // Save to Firestore if internet connection is available
+      await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(course.courseName)
+          .update(course.toFirestore());
+      await _coursesBox.put(course.courseName, course);
+    }
   }
 
   Future<void> _deleteCourseFromFirestore(Courses course) async {
     await FirebaseFirestore.instance
         .collection('courses')
-        .doc(course.id)
+        .doc(course.courseName)
         .delete();
+    await _coursesBox.delete(course.courseName);
+  }
+
+  Future<void> _syncData() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      var coursesCollection = FirebaseFirestore.instance.collection('courses');
+
+      // Sync data from Firestore to Hive
+      var firestoreDocs = await coursesCollection.get();
+      for (var doc in firestoreDocs.docs) {
+        var course = Courses.fromFirestore(doc);
+        if (!_coursesBox.containsKey(course.courseName)) {
+          await _coursesBox.put(course.courseName, course);
+        }
+      }
+
+      // Sync data from Hive to Firestore
+      for (var course in _coursesBox.values) {
+        var docSnapshot = await coursesCollection.doc(course.courseName).get();
+        if (!docSnapshot.exists) {
+          await coursesCollection
+              .doc(course.courseName)
+              .set(course.toFirestore());
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data synced to Firestore and Hive')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No internet connection')),
+        );
+      }
+    }
   }
 
   @override
@@ -173,6 +253,12 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Courses'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _syncData,
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('courses').snapshots(),
@@ -225,12 +311,10 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
 
 // Firestore model for Courses
 class Courses {
-  String? id; // Document ID
   String? courseName;
   String? courseDescription;
 
   Courses({
-    this.id,
     this.courseName,
     this.courseDescription,
   });
@@ -239,7 +323,6 @@ class Courses {
   factory Courses.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Courses(
-      id: doc.id,
       courseName: data['courseName'],
       courseDescription: data['courseDescription'],
     );

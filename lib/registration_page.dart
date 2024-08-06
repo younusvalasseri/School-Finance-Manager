@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:week7_institute_project_2/models/employee.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _RegistrationPageState createState() => _RegistrationPageState();
+  State<RegistrationPage> createState() => _RegistrationPageState();
 }
 
 class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
-  String _selectedEmployee = '';
+  String? _selectedEmployee; // Change to nullable String
   String _username = '';
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -35,9 +35,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
             .get();
 
         if (userSnapshot.docs.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Username already exists')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Username already exists')),
+            );
+          }
+
           return;
         }
 
@@ -48,15 +51,26 @@ class _RegistrationPageState extends State<RegistrationPage> {
           'password': _passwordController.text,
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration successful')),
+        // Update Hive
+        var employeesBox = Hive.box<Employee>('employees');
+        var employee = employeesBox.values.firstWhere(
+          (e) => e.empNumber == _selectedEmployee,
         );
-
-        Navigator.of(context).pop();
+        employee.username = _username;
+        employee.password = _passwordController.text;
+        await employee.save();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Registration successful')),
+          );
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to register: ${e.toString()}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to register: ${e.toString()}')),
+          );
+        }
       }
     }
   }
@@ -89,6 +103,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DropdownButtonFormField<String>(
+                    value: _selectedEmployee, // Set the value property
                     decoration:
                         const InputDecoration(labelText: 'Select Employee'),
                     items: employees.map((employee) {

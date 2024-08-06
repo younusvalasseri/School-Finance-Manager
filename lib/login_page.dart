@@ -1,68 +1,73 @@
+// ignore_for_file: unrelated_type_equality_checks
+
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:week7_institute_project_2/models/employee.dart';
 import 'package:week7_institute_project_2/password_reset_page.dart';
 import 'package:week7_institute_project_2/registration_page.dart';
-import 'package:week7_institute_project_2/home_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   String _username = '';
   String _password = '';
+  late Box<Employee> _employeesBox;
 
-  Future<void> _login() async {
+  @override
+  void initState() {
+    super.initState();
+    _employeesBox = Hive.box<Employee>('employees');
+    _checkAndSyncData();
+  }
+
+  void _checkAndSyncData() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult != ConnectivityResult.none) {
+      await _syncDataFromFirestore();
+    }
+  }
+
+  Future<void> _syncDataFromFirestore() async {
+    final employeesCollection =
+        FirebaseFirestore.instance.collection('employees');
+    final querySnapshot = await employeesCollection.get();
+
+    for (var doc in querySnapshot.docs) {
+      final employee = Employee.fromFirestore(doc);
+      if (_employeesBox.values
+          .where((e) => e.empNumber == employee.empNumber)
+          .isEmpty) {
+        _employeesBox.add(employee);
+      }
+    }
+  }
+
+  void _login() {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-
       try {
-        // Query Firestore for the employee with the given username
-        QuerySnapshot employeeSnapshot = await FirebaseFirestore.instance
-            .collection('employees')
-            .where('username', isEqualTo: _username)
-            .limit(1)
-            .get();
-
-        if (employeeSnapshot.docs.isEmpty) {
-          throw FirebaseAuthException(
-            code: 'user-not-found',
-            message: 'No user found for that username.',
-          );
-        }
-
-        // Get the employee data
-        DocumentSnapshot employeeDoc = employeeSnapshot.docs.first;
-        Employee employee = Employee.fromFirestore(employeeDoc);
-
-        // Validate the password
-        if (employee.password != _password) {
-          throw FirebaseAuthException(
-            code: 'wrong-password',
-            message: 'Wrong password provided for that user.',
-          );
-        }
+        final employee = _employeesBox.values.firstWhere(
+            (e) => e.username == _username && e.password == _password);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login successful')),
         );
-
-        Navigator.pushReplacement(
+        Navigator.pushReplacementNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(currentUser: employee),
-          ),
+          '/home',
+          arguments: employee,
         );
-      } on FirebaseAuthException catch (e) {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sign in: ${e.message}')),
+          const SnackBar(content: Text('Invalid username or password')),
         );
       }
     }

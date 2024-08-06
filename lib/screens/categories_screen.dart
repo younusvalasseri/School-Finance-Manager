@@ -1,5 +1,9 @@
-import 'package:flutter/material.dart';
+// ignore_for_file: unrelated_type_equality_checks
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:week7_institute_project_2/generated/l10n.dart';
 
 class CategoriesScreen extends StatelessWidget {
@@ -44,10 +48,10 @@ class CategoriesScreen extends StatelessWidget {
             final category = categories[index];
             return ListTile(
               leading: Icon(
-                category.type == 'Income'
+                category.type == 'Incomes'
                     ? Icons.arrow_upward
                     : Icons.arrow_downward,
-                color: category.type == 'Income' ? Colors.green : Colors.red,
+                color: category.type == 'Incomes' ? Colors.green : Colors.red,
               ),
               title: Text(category.description),
               subtitle: Text(
@@ -75,7 +79,7 @@ class CategoriesScreen extends StatelessWidget {
   void _showAddCategoryDialog(BuildContext context) {
     final formKey = GlobalKey<FormState>();
     String description = '';
-    String type = 'Income';
+    String type = 'Incomes';
     bool isTaxable = false;
 
     showDialog(
@@ -96,7 +100,7 @@ class CategoriesScreen extends StatelessWidget {
                   ),
                   DropdownButtonFormField<String>(
                     value: type,
-                    items: ['Income', 'Expense'].map((String value) {
+                    items: ['Incomes', 'Expense'].map((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
                         child: Text(value),
@@ -139,14 +143,22 @@ class CategoriesScreen extends StatelessWidget {
     );
   }
 
-  void _addCategory(String description, String type, bool isTaxable) {
+  void _addCategory(String description, String type, bool isTaxable) async {
     final newCategory = Category(
       description: description,
       type: type,
       isTaxable: isTaxable,
     );
 
-    CRUDOperations.createCategory(newCategory);
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.none) {
+      var categoriesBox = Hive.box<Category>('categories');
+      categoriesBox.add(newCategory);
+    } else {
+      await CRUDOperations.createCategory(newCategory);
+      var categoriesBox = Hive.box<Category>('categories');
+      categoriesBox.put(newCategory.id, newCategory);
+    }
   }
 
   void _showEditCategoryDialog(BuildContext context, Category category) {
@@ -174,7 +186,7 @@ class CategoriesScreen extends StatelessWidget {
                   ),
                   DropdownButtonFormField<String>(
                     value: type,
-                    items: ['Income', 'Expense'].map((String value) {
+                    items: ['Incomes', 'Expense'].map((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
                         child: Text(value),
@@ -203,14 +215,16 @@ class CategoriesScreen extends StatelessWidget {
             ),
             TextButton(
               child: const Text('Save'),
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   category.description = description;
                   category.type = type;
                   category.isTaxable = isTaxable;
-                  CRUDOperations.updateCategory(category);
-                  Navigator.of(context).pop();
+                  await CRUDOperations.updateCategory(category);
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
                 }
               },
             ),
@@ -234,9 +248,11 @@ class CategoriesScreen extends StatelessWidget {
             ),
             TextButton(
               child: const Text('Delete'),
-              onPressed: () {
-                CRUDOperations.deleteCategory(category);
-                Navigator.of(context).pop();
+              onPressed: () async {
+                await CRUDOperations.deleteCategory(category);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
               },
             ),
           ],
@@ -249,9 +265,10 @@ class CategoriesScreen extends StatelessWidget {
 // Updated CRUD operations to interact with Firestore
 class CRUDOperations {
   static Future<void> createCategory(Category category) async {
-    await FirebaseFirestore.instance
+    var docRef = await FirebaseFirestore.instance
         .collection('categories')
         .add(category.toFirestore());
+    category.id = docRef.id;
   }
 
   static Future<void> updateCategory(Category category) async {
@@ -266,6 +283,19 @@ class CRUDOperations {
         .collection('categories')
         .doc(category.id) // Assuming 'id' is the document ID
         .delete();
+  }
+
+  static Future<void> syncHiveDataToFirestore() async {
+    var categoriesBox = Hive.box<Category>('categories');
+    var categoriesCollection =
+        FirebaseFirestore.instance.collection('categories');
+
+    for (var category in categoriesBox.values) {
+      var docSnapshot = await categoriesCollection.doc(category.id).get();
+      if (!docSnapshot.exists) {
+        await categoriesCollection.doc(category.id).set(category.toFirestore());
+      }
+    }
   }
 }
 
