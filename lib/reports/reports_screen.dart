@@ -6,6 +6,7 @@ import 'student_fee_collection_report.dart';
 import 'students_collection_vs_pending_report.dart';
 import 'students_per_course.dart';
 import 'transactions_per_category.dart';
+import 'attendance_report.dart'; // Import the attendance report screen
 
 class ReportsScreen extends StatelessWidget {
   final Employee currentUser;
@@ -48,6 +49,12 @@ class ReportsScreen extends StatelessWidget {
             'Transactions per Category',
             Icons.category,
             const TransactionsPerCategory(),
+          ),
+          _buildCard(
+            context,
+            'Attendance Report', // New card for Attendance Report
+            Icons.event_note, // You can choose a different icon if you prefer
+            const AttendanceReport(), // This should navigate to your attendance report screen
           ),
         ],
       ),

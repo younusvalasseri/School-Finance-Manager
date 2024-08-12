@@ -310,13 +310,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddStudentScreen()),
+      floatingActionButton: Align(
+        alignment: Alignment.bottomCenter,
+        child: FloatingActionButton(
+          backgroundColor: Colors.amberAccent,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddStudentScreen()),
+          ),
+          tooltip: 'Add Student',
+          child: const Icon(Icons.add),
         ),
-        tooltip: 'Add Student',
-        child: const Icon(Icons.add),
       ),
     );
   }

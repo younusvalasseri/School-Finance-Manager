@@ -25,6 +25,7 @@ dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_localizations:
     sdk: flutter
+  font_awesome_flutter: ^10.7.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   image_cropper: ^8.0.1
@@ -46,6 +47,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
 
   assets:
     - assets/NTEM.png

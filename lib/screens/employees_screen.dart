@@ -57,15 +57,22 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           Expanded(child: _buildEmployeeList()),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AddEmployeeScreen(),
+      floatingActionButton: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: FloatingActionButton(
+            backgroundColor: Colors.amberAccent,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddEmployeeScreen(),
+              ),
+            ),
+            tooltip: 'Add Employee',
+            child: const Icon(Icons.add),
           ),
         ),
-        tooltip: 'Add Employee',
-        child: const Icon(Icons.add),
       ),
     );
   }

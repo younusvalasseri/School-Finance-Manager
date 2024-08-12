@@ -9,6 +9,8 @@ import 'package:week7_institute_project_2/screens/income_screen.dart';
 import 'package:week7_institute_project_2/screens/students_screen.dart';
 import 'package:week7_institute_project_2/screens/transactions_screen.dart';
 
+import 'screens/students_attendance.dart';
+
 class HomeScreen extends StatefulWidget {
   final Employee currentUser;
   const HomeScreen({super.key, required this.currentUser});
@@ -130,37 +132,78 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildCard(context, S.of(context).Income, Icons.arrow_upward,
-                IncomeScreen(currentUser: widget.currentUser),
-                color: Colors.green),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildCard(
+                    context,
+                    S.of(context).Income,
+                    Icons.arrow_upward,
+                    IncomeScreen(currentUser: widget.currentUser),
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: _buildCard(
+                    context,
+                    S.of(context).Expenses,
+                    Icons.arrow_downward,
+                    ExpensesScreen(currentUser: widget.currentUser),
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 15),
-            _buildCard(context, S.of(context).Expenses, Icons.arrow_downward,
-                ExpensesScreen(currentUser: widget.currentUser),
-                color: Colors.red),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildCard(
+                    context,
+                    S.of(context).Employees,
+                    Icons.people,
+                    EmployeesScreen(currentUser: widget.currentUser),
+                    color: Colors.amber,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: _buildCard(
+                    context,
+                    S.of(context).Students,
+                    Icons.school,
+                    StudentsScreen(currentUser: widget.currentUser),
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 15),
             _buildCard(
-                context,
-                S.of(context).Employees,
-                Icons.people,
-                EmployeesScreen(
-                    currentUser: widget.currentUser), // Pass the currentUser
-                color: Colors.amber),
+              context,
+              S.of(context).Transaction,
+              Icons.receipt_long,
+              TransactionsScreen(currentUser: widget.currentUser),
+              color: Colors.amber,
+            ),
             const SizedBox(height: 15),
-            _buildCard(context, S.of(context).Students, Icons.school,
-                StudentsScreen(currentUser: widget.currentUser),
-                color: Colors.blue),
+            _buildCard(
+              context,
+              'Students Attendance',
+              Icons.calendar_today,
+              StudentsAttendanceScreen(currentUser: widget.currentUser),
+              color: Colors.orange,
+            ),
             const SizedBox(height: 15),
-            _buildCard(context, S.of(context).Transaction, Icons.receipt_long,
-                TransactionsScreen(currentUser: widget.currentUser),
-                color: Colors.amber),
-            const SizedBox(height: 15),
-            if (widget.currentUser.username == 'admin') // Show only for admin
+            if (widget.currentUser.username == 'admin')
               _buildCard(
-                  context,
-                  S.of(context).adminPanel,
-                  Icons.admin_panel_settings,
-                  AdminScreen(currentUser: widget.currentUser),
-                  color: Colors.red),
+                context,
+                S.of(context).adminPanel,
+                Icons.admin_panel_settings,
+                AdminScreen(currentUser: widget.currentUser),
+                color: Colors.red,
+              ),
           ],
         ),
       ),

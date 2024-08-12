@@ -1,13 +1,15 @@
 // ignore_for_file: unrelated_type_equality_checks
 
 import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:hive_flutter/adapters.dart';
+
+import 'firebase_options.dart';
 import 'crud_operations.dart';
 import 'login_page.dart';
 import 'password_reset_page.dart';
@@ -19,12 +21,12 @@ import 'generated/l10n.dart';
 import 'home_screen.dart';
 import 'models/employee.dart';
 import 'models/account_transaction.dart';
-import 'models/category.dart';
+import 'models/category.dart' as my_models;
 import 'models/courses.dart';
 import 'models/student.dart';
-import 'firebase_options.dart';
+import 'models/attendance.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -32,18 +34,20 @@ void main() async {
   await Hive.initFlutter();
 
   // Register all adapters
-  Hive.registerAdapter(CategoryAdapter());
+  Hive.registerAdapter(my_models.CategoryAdapter());
   Hive.registerAdapter(AccountTransactionAdapter());
   Hive.registerAdapter(CoursesAdapter());
   Hive.registerAdapter(EmployeeAdapter());
   Hive.registerAdapter(StudentAdapter());
+  Hive.registerAdapter(AttendanceAdapter());
 
-  // Open the boxes
-  await Hive.openBox<Category>('categories');
+  // Open all the boxes
+  await Hive.openBox<my_models.Category>('categories');
   await Hive.openBox<AccountTransaction>('transactions');
   await Hive.openBox<Courses>('courses');
   await Hive.openBox<Employee>('employees');
   await Hive.openBox<Student>('students');
+  await Hive.openBox<Attendance>('attendance');
 
   // Ensure the admin user exists
   var employeesBox = Hive.box<Employee>('employees');
@@ -67,9 +71,10 @@ void main() async {
   // Update existing users with default username
   await updateExistingUsersWithDefaultUsername();
 
-  runApp(const MyApp());
-// Start syncing transactions
+  // Start syncing transactions
   CRUDOperations().startSyncingTransactions();
+
+  runApp(const MyApp());
 }
 
 Future<void> updateExistingUsersWithDefaultUsername() async {
@@ -77,8 +82,7 @@ Future<void> updateExistingUsersWithDefaultUsername() async {
 
   for (var employee in employeesBox.values) {
     if (employee.username == null || employee.username!.isEmpty) {
-      employee.username =
-          'default_${employee.empNumber}'; // Example: default_001
+      employee.username = 'default_${employee.empNumber}';
       await employee.save();
     }
   }
@@ -92,7 +96,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.system; // Initialize _themeMode
   Locale _locale = const Locale('en');
   late Box<Employee> employeesBox;
 
@@ -154,14 +158,16 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Institute Management App',
       theme: ThemeData(
+        fontFamily: 'Roboto', // Use the local Roboto font
         primarySwatch: Colors.blue,
         brightness: Brightness.light,
       ),
       darkTheme: ThemeData(
+        fontFamily: 'Roboto', // Use the local Roboto font
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
       ),
-      themeMode: _themeMode,
+      themeMode: _themeMode, // Use the _themeMode field here
       locale: _locale,
       localizationsDelegates: const [
         S.delegate,

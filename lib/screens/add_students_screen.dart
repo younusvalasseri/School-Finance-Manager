@@ -4,10 +4,10 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../crud_operations.dart';
 import '../models/student.dart';
 import '../models/courses.dart';
 import '../models/employee.dart';
-import '../crud_operations.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final Student? student;
@@ -30,6 +30,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       address,
       classTeacher;
   late double courseFee;
+  late List<Courses> availableCourses = [];
   late Future<Box<Courses>> _coursesBoxFuture;
   final _employeesBox = Hive.box<Employee>('employees');
 
@@ -52,33 +53,29 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
   Future<Box<Courses>> _openCoursesBox() async {
     var box = await Hive.openBox<Courses>('courses');
-    await _syncCoursesData(box);
+    await _fetchCourses(box);
     return box;
   }
 
-  Future<void> _syncCoursesData(Box<Courses> coursesBox) async {
+  Future<void> _fetchCourses(Box<Courses> coursesBox) async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult != ConnectivityResult.none) {
+      // Fetch courses from Firebase if connected
       var coursesCollection = FirebaseFirestore.instance.collection('courses');
-
-      // Fetch courses from Firestore and populate Hive
       var firestoreDocs = await coursesCollection.get();
-      for (var doc in firestoreDocs.docs) {
+      availableCourses = firestoreDocs.docs.map((doc) {
         var course = Courses.fromFirestore(doc);
-        if (!coursesBox.containsKey(course.courseName)) {
-          await coursesBox.put(course.courseName, course);
-        }
-      }
+        coursesBox.put(course.courseName, course); // Sync with Hive
+        return course;
+      }).toList();
+    } else {
+      // Fetch courses from Hive if not connected
+      availableCourses = coursesBox.values.toList();
+    }
 
-      // Sync data from Hive to Firestore
-      for (var course in coursesBox.values) {
-        var docSnapshot = await coursesCollection.doc(course.courseName).get();
-        if (!docSnapshot.exists) {
-          await coursesCollection
-              .doc(course.courseName)
-              .set(course.toFirestore());
-        }
-      }
+    // Ensure UI is updated
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -99,11 +96,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          if (!snapshot.hasData) {
-            return const Center(child: Text('No data'));
+          if (availableCourses.isEmpty) {
+            return const Center(child: Text('No courses available'));
           }
 
-          var coursesBox = snapshot.data!;
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Form(
@@ -121,27 +117,19 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                       labelText: 'Name',
                       onSaved: (value) => name = value!,
                     ),
-                    ValueListenableBuilder(
-                      valueListenable: coursesBox.listenable(),
-                      builder: (context, Box<Courses> box, _) {
-                        if (box.values.isEmpty) {
-                          return const Text('No courses available');
-                        }
-                        return buildDropdownButtonFormField(
-                          labelText: 'Course',
-                          value: course.isEmpty ? null : course,
-                          items: box.values.map((Courses course) {
-                            return DropdownMenuItem<String>(
-                              value: course.courseName!,
-                              child: Text(course.courseName ?? 'No name'),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            course = newValue!;
-                          },
-                          onSaved: (value) => course = value!,
+                    buildDropdownButtonFormField(
+                      labelText: 'Course',
+                      value: course.isEmpty ? null : course,
+                      items: availableCourses.map((Courses course) {
+                        return DropdownMenuItem<String>(
+                          value: course.courseName!,
+                          child: Text(course.courseName ?? 'No name'),
                         );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        course = newValue!;
                       },
+                      onSaved: (value) => course = value!,
                     ),
                     buildTextFormField(
                       initialValue: batch,
@@ -226,7 +214,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _saveStudent, // Update the state to reflect changes
+        onPressed: _saveStudent,
         child: const Icon(Icons.save),
       ),
     );
@@ -284,33 +272,24 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
       var connectivityResult = await (Connectivity().checkConnectivity());
       if (connectivityResult == ConnectivityResult.none) {
-        // Show a SnackBar when there is no connectivity
-        // if (mounted) {
-        //   ScaffoldMessenger.of(context).showSnackBar(
-        //     const SnackBar(
-        //       content: Text(
-        //           'No internet, the data has been saved locally. Please press back arrow to close.'),
-        //     ),
-        //   );
-        // }
-        //// Save to Firestore if internet connection is available
+        // Save to Hive if no internet connection
+        var studentsBox = Hive.box<Student>('students');
+        await studentsBox.put(newStudent.admNumber, newStudent);
+      } else {
+        // Save to Firestore if internet connection is available
         if (widget.student == null) {
           await CRUDOperations().createStudent(newStudent);
         } else {
           await CRUDOperations().updateStudent(admNumber, newStudent);
         }
-      } else {
-        // Save to Hive if no internet connection
-        var studentsBox = Hive.box<Student>('students');
-        await studentsBox.put(newStudent.admNumber, newStudent);
 
         // Sync data to Firestore if connectivity is available
         await CRUDOperations.syncHiveDataToFirestore();
+      }
 
-        // Pop the screen after saving the data
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
+      // Pop the screen after saving the data
+      if (mounted) {
+        Navigator.of(context).pop();
       }
     }
   }
