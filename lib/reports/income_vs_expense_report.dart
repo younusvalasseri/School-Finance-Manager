@@ -131,7 +131,7 @@ class _IncomeVsExpenseReportState extends State<IncomeVsExpenseReport> {
 
   Future<List<ChartData>> _prepareChartData() async {
     final querySnapshot = await FirebaseFirestore.instance
-        .collection('transactions')
+        .collection('transaction')
         .where('category', whereIn: ['Incomes', 'Expense']).get();
 
     final transactions = querySnapshot.docs

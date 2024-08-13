@@ -107,7 +107,7 @@ class _StudentFeeCollectionReportState
 
   Future<Map<String, Map<String, double>>> _prepareData() async {
     QuerySnapshot transactionSnapshot = await FirebaseFirestore.instance
-        .collection('transactions')
+        .collection('transaction')
         .where('category', isEqualTo: 'Incomes')
         .where('mainCategory', isEqualTo: 'Student Fee')
         .get();

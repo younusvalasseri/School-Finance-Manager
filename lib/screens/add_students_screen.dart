@@ -177,8 +177,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                             child: Text('Select Teacher'),
                           ),
                           ...box.values
-                              .where(
-                                  (employee) => employee.position == 'Faculty')
+                              .where((employee) =>
+                                  employee.position == 'Faculty' &&
+                                  employee.isActive) // Filter by isActive
                               .map((employee) {
                             return DropdownMenuItem<String>(
                               value: employee.empNumber,

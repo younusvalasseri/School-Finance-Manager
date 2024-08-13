@@ -121,7 +121,7 @@ class _StudentsCollectionVsPendingReportState
 
   Future<List<ChartData>> _prepareChartData() async {
     QuerySnapshot transactionSnapshot = await FirebaseFirestore.instance
-        .collection('transactions')
+        .collection('transaction')
         .where('category', isEqualTo: 'Incomes')
         .where('mainCategory', isEqualTo: 'Student Fee')
         .get();

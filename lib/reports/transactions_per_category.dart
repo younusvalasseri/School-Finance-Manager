@@ -35,7 +35,7 @@ class _TransactionsPerCategoryState extends State<TransactionsPerCategory> {
 
   Widget _buildCategoryDropdown() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('transactions').snapshots(),
+      stream: FirebaseFirestore.instance.collection('transaction').snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const CircularProgressIndicator();
@@ -121,7 +121,7 @@ class _TransactionsPerCategoryState extends State<TransactionsPerCategory> {
 
   Widget _buildTransactionList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('transactions').snapshots(),
+      stream: FirebaseFirestore.instance.collection('transaction').snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const CircularProgressIndicator();

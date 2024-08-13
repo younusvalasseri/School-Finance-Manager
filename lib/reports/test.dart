@@ -1,13 +1,8 @@
-import 'package:external_path/external_path.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:excel/excel.dart';
-// import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:week7_institute_project_2/models/attendance.dart';
 import 'package:week7_institute_project_2/models/student.dart';
 import 'package:week7_institute_project_2/models/courses.dart';
@@ -29,7 +24,6 @@ class _AttendanceReportState extends State<AttendanceReport> {
   List<String> _batches = ['All'];
   List<Student> _students = [];
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   @override
   void initState() {
     super.initState();
@@ -97,21 +91,7 @@ class _AttendanceReportState extends State<AttendanceReport> {
     }).toList();
   }
 
-  Future<void> _exportToExcel() async {
-    var excel = Excel.createExcel(); // Create a new Excel file
-    var sheet = excel['Attendance Report']; // Create a new sheet
-
-    // Add header row using TextCellValue
-    sheet.appendRow(
-      [
-        'Student Name',
-        'Father Phone',
-        'Mother Phone',
-        'Message',
-      ].map((header) => TextCellValue(header)).toList(),
-    );
-
-    // Add data rows
+  void _sendBulkWhatsAppMessage() async {
     for (var student in _students) {
       final attendances = await _getAttendanceForStudent(student);
       for (var attendance in attendances) {
@@ -120,50 +100,33 @@ class _AttendanceReportState extends State<AttendanceReport> {
               ? 'Your son ${student.name} is absent today.'
               : 'Your son ${student.name} is late today and he entered the class at ${attendance.lateTime}.';
 
-          sheet.appendRow([
-            student.name,
-            student.fatherPhone,
-            student.motherPhone,
-            message,
-          ].map((e) => TextCellValue(e)).toList());
+          _sendWhatsAppMessage(student, message);
         }
       }
     }
+  }
 
-    if (Platform.isAndroid) {
-      final String directory =
-          await ExternalPath.getExternalStoragePublicDirectory(
-              ExternalPath.DIRECTORY_DOWNLOADS);
-      final String filePath = '$directory/Fee_Collection_Report.xlsx';
-      final File file = File(filePath);
-      await file.writeAsBytes(excel.encode()!);
+  void _sendWhatsAppMessage(Student student, String message) async {
+    const String countryCode =
+        '91'; // Replace with the appropriate country code
+    final String fatherPhoneNumber = '$countryCode${student.fatherPhone}';
+    final String motherPhoneNumber = '$countryCode${student.motherPhone}';
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
-        SnackBar(content: Text('Report saved to $filePath')),
-      );
-    } else if (Platform.isWindows) {
-      String? outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Excel File',
-        fileName: 'Fee_Collection_Report.xlsx',
-        type: FileType.custom,
-        allowedExtensions: ['xlsx'],
-      );
+    final Uri urlFather = Uri.parse(
+        "https://wa.me/$fatherPhoneNumber?text=${Uri.encodeComponent(message)}");
+    final Uri urlMother = Uri.parse(
+        "https://wa.me/$motherPhoneNumber?text=${Uri.encodeComponent(message)}");
 
-      if (outputFile != null) {
-        final File file = File(outputFile);
-        await file.writeAsBytes(excel.encode()!);
+    if (await canLaunchUrl(urlFather)) {
+      await launchUrl(urlFather, mode: LaunchMode.externalApplication);
+    } else {
+      throw 'Could not launch WhatsApp for father';
+    }
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
-          SnackBar(content: Text('Report saved to $outputFile')),
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(_scaffoldKey.currentContext!).showSnackBar(
-          const SnackBar(content: Text('Save cancelled')),
-        );
-      }
+    if (await canLaunchUrl(urlMother)) {
+      await launchUrl(urlMother, mode: LaunchMode.externalApplication);
+    } else {
+      throw 'Could not launch WhatsApp for mother';
     }
   }
 
@@ -172,14 +135,6 @@ class _AttendanceReportState extends State<AttendanceReport> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Attendance Report'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed:
-                _exportToExcel, // Call export method when button is pressed
-            tooltip: 'Export to Excel',
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -241,6 +196,14 @@ class _AttendanceReportState extends State<AttendanceReport> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _sendBulkWhatsAppMessage,
+        tooltip: 'Send Bulk WhatsApp',
+        child: const Icon(
+          FontAwesomeIcons.whatsapp,
+          size: 36.0,
+        ),
       ),
     );
   }
@@ -357,30 +320,6 @@ class _AttendanceReportState extends State<AttendanceReport> {
         );
       },
     );
-  }
-
-  void _sendWhatsAppMessage(Student student, String message) async {
-    const String countryCode =
-        '91'; // Replace with the appropriate country code
-    final String fatherPhoneNumber = '$countryCode${student.fatherPhone}';
-    final String motherPhoneNumber = '$countryCode${student.motherPhone}';
-
-    final Uri urlFather = Uri.parse(
-        "https://wa.me/$fatherPhoneNumber?text=${Uri.encodeComponent(message)}");
-    final Uri urlMother = Uri.parse(
-        "https://wa.me/$motherPhoneNumber?text=${Uri.encodeComponent(message)}");
-
-    if (await canLaunchUrl(urlFather)) {
-      await launchUrl(urlFather, mode: LaunchMode.externalApplication);
-    } else {
-      throw 'Could not launch WhatsApp for father';
-    }
-
-    if (await canLaunchUrl(urlMother)) {
-      await launchUrl(urlMother, mode: LaunchMode.externalApplication);
-    } else {
-      throw 'Could not launch WhatsApp for mother';
-    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
