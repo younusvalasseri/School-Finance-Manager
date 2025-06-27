@@ -1,8 +1,3 @@
-Here's a professional and detailed `README.md` file for your [School Finance Manager](https://github.com/younusvalasseri/School-Finance-Manager) Flutter project:
-
----
-
-```markdown
 # 📘 School Finance Manager
 
 A complete digital solution built with **Flutter** and **Firebase** to manage key financial and administrative operations in educational institutions. Designed for automation, transparency, and efficiency in fee tracking, salary distribution, expense logging, certificate management, and attendance reporting.
@@ -51,12 +46,6 @@ A complete digital solution built with **Flutter** and **Firebase** to manage ke
 | Backend          | Firebase Firestore                 |
 | Local Storage    | Hive                               |
 | UI Design        | Flutter Widgets & Material Design  |
-
----
-
-## 📷 Screenshots
-
-> _Add screenshots here showing Fee Reports, Attendance screen, Certificate Issuance, etc._
 
 ---
 
